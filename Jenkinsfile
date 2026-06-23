@@ -3,12 +3,8 @@
 import com.company.cicd.PriorityManager
 import com.company.cicd.DeploymentExecutor
 
-pipeline {
-
-    agent any
-
-    parameters {
-
+properties([
+    parameters([
         choice(
             name: 'PRIORITY_1',
             choices: [
@@ -18,8 +14,7 @@ pipeline {
                 'CD',
                 'DE'
             ]
-        )
-
+        ),
         choice(
             name: 'PRIORITY_2',
             choices: [
@@ -29,8 +24,7 @@ pipeline {
                 'CD',
                 'DE'
             ]
-        )
-
+        ),
         choice(
             name: 'PRIORITY_3',
             choices: [
@@ -41,41 +35,28 @@ pipeline {
                 'DE'
             ]
         )
+    ])
+])
+
+node {
+
+    def PRIORITY_APPS = []
+
+    stage('Build Priority List') {
+
+        PRIORITY_APPS = PriorityManager.getPriorityList(params)
+
+        echo "Selected Priority Order"
+
+        PRIORITY_APPS.eachWithIndex { app, index ->
+            echo "${index + 1} -> ${app}"
+        }
     }
 
-    stages {
+    stage('Deploy') {
 
-        stage('Build Priority List') {
+        def deployer = new DeploymentExecutor(this)
 
-            steps {
-
-                script {
-
-                    PRIORITY_APPS =
-                        PriorityManager.getPriorityList(params)
-
-                    echo "Selected Priority Order"
-
-                    PRIORITY_APPS.eachWithIndex { app,index ->
-
-                        echo "${index+1} -> ${app}"
-                    }
-                }
-            }
-        }
-
-        stage('Deploy') {
-
-            steps {
-
-                script {
-
-                    def deployer =
-                        new DeploymentExecutor(this)
-
-                    deployer.execute(PRIORITY_APPS)
-                }
-            }
-        }
+        deployer.execute(PRIORITY_APPS)
     }
 }
