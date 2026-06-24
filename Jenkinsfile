@@ -1,10 +1,15 @@
 @Library('cicd-shared-lib') _
 
 import com.company.cicd.PriorityManager
+import com.company.cicd.AppConfigResolver
 import com.company.cicd.DeploymentExecutor
 
-properties([
-    parameters([
+pipeline {
+
+    agent any
+
+    parameters {
+
         choice(
             name: 'PRIORITY_1',
             choices: [
@@ -14,7 +19,8 @@ properties([
                 'CD',
                 'DE'
             ]
-        ),
+        )
+
         choice(
             name: 'PRIORITY_2',
             choices: [
@@ -24,7 +30,8 @@ properties([
                 'CD',
                 'DE'
             ]
-        ),
+        )
+
         choice(
             name: 'PRIORITY_3',
             choices: [
@@ -35,28 +42,53 @@ properties([
                 'DE'
             ]
         )
-    ])
-])
-
-node {
-
-    def PRIORITY_APPS = []
-
-    stage('Build Priority List') {
-
-        PRIORITY_APPS = PriorityManager.getPriorityList(params)
-
-        echo "Selected Priority Order"
-
-        PRIORITY_APPS.eachWithIndex { app, index ->
-            echo "${index + 1} -> ${app}"
-        }
     }
 
-    stage('Deploy') {
+    stages {
 
-        def deployer = new DeploymentExecutor(this)
+        stage('Build Priority List') {
 
-        deployer.execute(PRIORITY_APPS)
+            steps {
+
+                script {
+
+                    PRIORITY_APPS =
+                        PriorityManager.getPriorityList(params)
+
+                    echo "Selected Priority Order"
+
+                    PRIORITY_APPS.eachWithIndex { app,index ->
+
+                        echo "${index+1} -> ${app}"
+                    }
+                }
+            }
+        }
+
+        stage('Resolve App Config') {
+
+            steps {
+
+                script {
+
+                    APP_CONFIGS =
+                        AppConfigResolver.resolveAll(PRIORITY_APPS, params)
+                }
+            }
+        }
+
+        stage('Deploy') {
+
+            steps {
+
+                script {
+
+                    def deployer =
+                        new DeploymentExecutor(this)
+
+                    deployer.execute(PRIORITY_APPS, APP_CONFIGS)
+                }
+            }
+        }
     }
 }
